@@ -1,0 +1,12 @@
+[project]
+name = "mlops-zoomcamp-hw2"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.12"
+dependencies = [
+    "hyperopt>=0.2.7",
+    "mlflow>=2.22.0",
+    "numpy>=2.2.6",
+    "pandas>=2.2.3",
+    "scikit-learn>=1.6.1",
+]
