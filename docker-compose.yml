@@ -1,0 +1,76 @@
+services:
+  postgres:
+    image: postgres:16
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/01-init-databases.sql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $POSTGRES_USER" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mlops
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: mlflow.dockerfile
+    command: >
+      mlflow server 
+        --backend-store-uri postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/mlflow_db
+        --default-artifact-root /home/mlflow/artifacts
+        --host 0.0.0.0
+        --port 5000
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    volumes:
+      - ./data/mlflow-artifacts:/home/mlflow/artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mlops
+
+  prefect-server:
+    image: prefecthq/prefect:3-python3.12
+    command: prefect server start --host 0.0.0.0 --port 4200
+    env_file:
+      - .env
+    ports:
+      - "4200:4200"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./data/pipeline-data:/opt/prefect/data:ro
+    networks:
+      - mlops
+
+  prefect-worker:
+    build:
+      context: .
+    environment:
+      - PREFECT_API_URL=http://prefect-server:4200/api
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    volumes:
+      - ./data/pipeline-data:/app/data
+      - ./data/taxi-data:/app/taxi-data
+      - ./data/models:/app/models
+      - ./data/mlflow-artifacts:/home/mlflow/artifacts
+    depends_on:
+      - prefect-server
+      - mlflow
+    networks:
+      - mlops
+
+networks:
+  mlops:
+    name: mlops-network
+    driver: bridge

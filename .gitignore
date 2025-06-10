@@ -1,4 +1,4 @@
-.venv
+.venv*
 .idea
 __pycache__
 *.parquet
@@ -6,3 +6,6 @@ artifacts
 mlruns
 output
 *.db
+.env*
+!.env.example
+data
